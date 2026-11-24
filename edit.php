@@ -1,8 +1,9 @@
 <?php
 /**
  * File: edit.php
- * Deskripsi: Mengambil data barang berdasarkan parameter ID, menampilkan nilai lama
- *            ke formulir, dan memproses pembaruan data menggunakan PDO Prepared Statements.
+ * Deskripsi: Mengambil data barang dan data master relasi (kategori & lokasi) berdasarkan ID,
+ *            menampilkan dropdown terpilih (selected) secara otomatis, dan memproses update
+ *            menggunakan PDO Prepared Statements.
  */
 
 require_once 'config/koneksi.php';
@@ -16,8 +17,12 @@ if (!$id) {
 
 $error = '';
 
-// Ambil data barang yang akan diedit dari database
+// Ambil data referensi dari tabel master kategori & lokasi untuk dropdown dinamis
 try {
+    $kategoriList = $pdo->query("SELECT id_kategori, nama_kategori FROM kategori ORDER BY nama_kategori ASC")->fetchAll();
+    $lokasiList   = $pdo->query("SELECT id_lokasi, nama_lokasi, penanggung_jawab FROM lokasi ORDER BY nama_lokasi ASC")->fetchAll();
+
+    // Ambil data barang yang akan diedit dari database
     $stmt = $pdo->prepare("SELECT * FROM barang WHERE id = :id");
     $stmt->execute([':id' => $id]);
     $barang = $stmt->fetch();
@@ -27,21 +32,22 @@ try {
         exit;
     }
 } catch (PDOException $e) {
-    die("Gagal mengambil data barang: " . $e->getMessage());
+    die("Gagal mengambil data dari database: " . $e->getMessage());
 }
 
 // Proses form saat formulir disubmit (metode POST)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $kode_barang   = trim($_POST['kode_barang'] ?? '');
     $nama_barang   = trim($_POST['nama_barang'] ?? '');
-    $kategori      = trim($_POST['kategori'] ?? '');
+    $id_kategori   = filter_input(INPUT_POST, 'id_kategori', FILTER_VALIDATE_INT);
+    $id_lokasi     = filter_input(INPUT_POST, 'id_lokasi', FILTER_VALIDATE_INT);
     $stok          = trim($_POST['stok'] ?? '');
     $harga         = trim($_POST['harga'] ?? '');
     $tanggal_masuk = trim($_POST['tanggal_masuk'] ?? '');
 
     // Validasi input di sisi server
-    if (empty($kode_barang) || empty($nama_barang) || empty($kategori) || $stok === '' || $harga === '' || empty($tanggal_masuk)) {
-        $error = 'Seluruh kolom formulir wajib diisi!';
+    if (empty($kode_barang) || empty($nama_barang) || !$id_kategori || !$id_lokasi || $stok === '' || $harga === '' || empty($tanggal_masuk)) {
+        $error = 'Seluruh kolom formulir wajib diisi dengan benar!';
     } elseif (!is_numeric($stok) || (int)$stok < 0) {
         $error = 'Jumlah stok harus berupa angka positif atau nol.';
     } elseif (!is_numeric($harga) || (int)$harga < 0) {
@@ -58,11 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($checkStmt->fetchColumn() > 0) {
                 $error = "Kode barang '{$kode_barang}' sudah dipakai oleh barang lain, mohon gunakan kode berbeda.";
             } else {
-                // Update data barang dengan PDO Prepared Statements
+                // Update data barang dengan relasi foreign key menggunakan PDO Prepared Statements
                 $sql = "UPDATE barang 
                         SET kode_barang = :kode_barang, 
                             nama_barang = :nama_barang, 
-                            kategori = :kategori, 
+                            id_kategori = :id_kategori, 
+                            id_lokasi = :id_lokasi, 
                             stok = :stok, 
                             harga = :harga, 
                             tanggal_masuk = :tanggal_masuk 
@@ -71,7 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $updateStmt->execute([
                     ':kode_barang'   => $kode_barang,
                     ':nama_barang'   => $nama_barang,
-                    ':kategori'      => $kategori,
+                    ':id_kategori'   => $id_kategori,
+                    ':id_lokasi'     => $id_lokasi,
                     ':stok'          => (int)$stok,
                     ':harga'         => (int)$harga,
                     ':tanggal_masuk' => $tanggal_masuk,
@@ -87,10 +95,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 } else {
-    // Isi variabel dengan data dari database untuk pertama kali ditampilkan
+    // Isi variabel dengan data lama dari database untuk pertama kali ditampilkan di form
     $kode_barang   = $barang['kode_barang'];
     $nama_barang   = $barang['nama_barang'];
-    $kategori      = $barang['kategori'];
+    $id_kategori   = $barang['id_kategori'];
+    $id_lokasi     = $barang['id_lokasi'];
     $stok          = $barang['stok'];
     $harga         = $barang['harga'];
     $tanggal_masuk = $barang['tanggal_masuk'];
@@ -110,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <header class="app-header">
             <div>
                 <h1>Edit Data Barang</h1>
-                <p>Perbarui informasi barang ID #<?= htmlspecialchars((string)$id) ?> (<?= htmlspecialchars($kode_barang) ?>)</p>
+                <p>Perbarui rincian informasi dan relasi master barang ID #<?= htmlspecialchars((string)$id) ?></p>
             </div>
             <div>
                 <a href="index.php" class="btn btn-secondary">← Kembali</a>
@@ -124,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
-        <!-- Form Edit Data -->
+        <!-- Form Edit Data Berelasi -->
         <div class="card">
             <div class="card-body">
                 <form action="edit.php?id=<?= $id ?>" method="POST">
@@ -136,24 +145,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    required maxlength="20">
                         </div>
                         <div class="form-group">
-                            <label for="kategori">Kategori <span class="required">*</span></label>
-                            <select id="kategori" name="kategori" class="form-control" required>
-                                <option value="" disabled>-- Pilih Kategori --</option>
-                                <?php
-                                $daftar_kategori = ['Elektronik', 'Aksesoris Komputer', 'Furnitur', 'ATK', 'Peralatan', 'Lainnya'];
-                                foreach ($daftar_kategori as $kat):
-                                ?>
-                                    <option value="<?= $kat ?>" <?= ($kategori === $kat) ? 'selected' : '' ?>><?= $kat ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label for="nama_barang">Nama Barang <span class="required">*</span></label>
+                            <input type="text" id="nama_barang" name="nama_barang" class="form-control" 
+                                   value="<?= htmlspecialchars($nama_barang) ?>" 
+                                   required maxlength="100">
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="nama_barang">Nama Barang <span class="required">*</span></label>
-                        <input type="text" id="nama_barang" name="nama_barang" class="form-control" 
-                               value="<?= htmlspecialchars($nama_barang) ?>" 
-                               required maxlength="100">
+                    <div class="form-row">
+                        <!-- Dropdown Relasi Kategori dengan Opsi Otomatis Terpilih (Selected) -->
+                        <div class="form-group">
+                            <label for="id_kategori">Kategori Barang <span class="required">*</span></label>
+                            <select id="id_kategori" name="id_kategori" class="form-control" required>
+                                <option value="" disabled>-- Pilih Kategori --</option>
+                                <?php foreach ($kategoriList as $kat): ?>
+                                    <option value="<?= $kat['id_kategori'] ?>" <?= ($id_kategori == $kat['id_kategori']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($kat['nama_kategori']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Dropdown Relasi Lokasi dengan Opsi Otomatis Terpilih (Selected) -->
+                        <div class="form-group">
+                            <label for="id_lokasi">Lokasi Penempatan <span class="required">*</span></label>
+                            <select id="id_lokasi" name="id_lokasi" class="form-control" required>
+                                <option value="" disabled>-- Pilih Lokasi --</option>
+                                <?php foreach ($lokasiList as $lok): ?>
+                                    <option value="<?= $lok['id_lokasi'] ?>" <?= ($id_lokasi == $lok['id_lokasi']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($lok['nama_lokasi']) ?> (PJ: <?= htmlspecialchars($lok['penanggung_jawab']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="form-row">

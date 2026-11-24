@@ -1,8 +1,9 @@
 <?php
 /**
  * File: tambah.php
- * Deskripsi: Menampilkan form tambah barang baru dan memproses data input
- *            menggunakan validasi server-side dan PDO Prepared Statements.
+ * Deskripsi: Menampilkan formulir penambahan barang dengan dropdown dinamis yang
+ *            mengambil data dari tabel master (kategori & lokasi) serta memproses
+ *            penyimpanan menggunakan PDO Prepared Statements.
  */
 
 require_once 'config/koneksi.php';
@@ -10,51 +11,62 @@ require_once 'config/koneksi.php';
 $error = '';
 $kode_barang   = '';
 $nama_barang   = '';
-$kategori      = '';
+$id_kategori   = '';
+$id_lokasi     = '';
 $stok          = '';
 $harga         = '';
 $tanggal_masuk = date('Y-m-d');
+
+// Mengambil data referensi dari tabel master kategori & lokasi untuk dropdown dinamis
+try {
+    $kategoriList = $pdo->query("SELECT id_kategori, nama_kategori FROM kategori ORDER BY nama_kategori ASC")->fetchAll();
+    $lokasiList   = $pdo->query("SELECT id_lokasi, nama_lokasi, penanggung_jawab FROM lokasi ORDER BY nama_lokasi ASC")->fetchAll();
+} catch (PDOException $e) {
+    die("Gagal memuat data master: " . $e->getMessage());
+}
 
 // Proses form saat metode HTTP adalah POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Sanitasi dan pembersihan input pengguna
     $kode_barang   = trim($_POST['kode_barang'] ?? '');
     $nama_barang   = trim($_POST['nama_barang'] ?? '');
-    $kategori      = trim($_POST['kategori'] ?? '');
+    $id_kategori   = filter_input(INPUT_POST, 'id_kategori', FILTER_VALIDATE_INT);
+    $id_lokasi     = filter_input(INPUT_POST, 'id_lokasi', FILTER_VALIDATE_INT);
     $stok          = trim($_POST['stok'] ?? '');
     $harga         = trim($_POST['harga'] ?? '');
     $tanggal_masuk = trim($_POST['tanggal_masuk'] ?? '');
 
     // Validasi input di sisi server
-    if (empty($kode_barang) || empty($nama_barang) || empty($kategori) || $stok === '' || $harga === '' || empty($tanggal_masuk)) {
-        $error = 'Seluruh kolom formulir wajib diisi!';
+    if (empty($kode_barang) || empty($nama_barang) || !$id_kategori || !$id_lokasi || $stok === '' || $harga === '' || empty($tanggal_masuk)) {
+        $error = 'Seluruh kolom formulir wajib diisi dengan benar!';
     } elseif (!is_numeric($stok) || (int)$stok < 0) {
         $error = 'Jumlah stok harus berupa angka positif atau nol.';
     } elseif (!is_numeric($harga) || (int)$harga < 0) {
         $error = 'Harga barang harus berupa angka positif atau nol.';
     } else {
         try {
-            // Cek apakah kode barang sudah digunakan oleh barang lain
+            // Cek apakah kode barang sudah pernah terdaftar (harus unik)
             $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM barang WHERE kode_barang = :kode_barang");
             $checkStmt->execute([':kode_barang' => $kode_barang]);
             
             if ($checkStmt->fetchColumn() > 0) {
                 $error = "Kode barang '{$kode_barang}' sudah terdaftar, gunakan kode lain.";
             } else {
-                // Query simpan data menggunakan PDO Prepared Statement
-                $sql = "INSERT INTO barang (kode_barang, nama_barang, kategori, stok, harga, tanggal_masuk) 
-                        VALUES (:kode_barang, :nama_barang, :kategori, :stok, :harga, :tanggal_masuk)";
+                // Query insert menggunakan PDO Prepared Statements dengan relasi FK (id_kategori & id_lokasi)
+                $sql = "INSERT INTO barang (kode_barang, nama_barang, id_kategori, id_lokasi, stok, harga, tanggal_masuk) 
+                        VALUES (:kode_barang, :nama_barang, :id_kategori, :id_lokasi, :stok, :harga, :tanggal_masuk)";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([
                     ':kode_barang'   => $kode_barang,
                     ':nama_barang'   => $nama_barang,
-                    ':kategori'      => $kategori,
+                    ':id_kategori'   => $id_kategori,
+                    ':id_lokasi'     => $id_lokasi,
                     ':stok'          => (int)$stok,
                     ':harga'         => (int)$harga,
                     ':tanggal_masuk' => $tanggal_masuk,
                 ]);
 
-                // Redirect kembali ke index dengan status sukses
+                // Redirect kembali ke index dengan notifikasi status sukses
                 header("Location: index.php?status=sukses_tambah");
                 exit;
             }
@@ -78,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <header class="app-header">
             <div>
                 <h1>Tambah Barang Baru</h1>
-                <p>Masukkan rincian informasi barang ke dalam sistem inventaris</p>
+                <p>Masukkan data barang dengan memilih referensi kategori & lokasi yang sesuai</p>
             </div>
             <div>
                 <a href="index.php" class="btn btn-secondary">← Kembali</a>
@@ -92,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
-        <!-- Form Tambah Data -->
+        <!-- Form Tambah Data Berelasi -->
         <div class="card">
             <div class="card-body">
                 <form action="tambah.php" method="POST">
@@ -105,25 +117,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    required maxlength="20" autofocus>
                         </div>
                         <div class="form-group">
-                            <label for="kategori">Kategori <span class="required">*</span></label>
-                            <select id="kategori" name="kategori" class="form-control" required>
-                                <option value="" disabled <?= empty($kategori) ? 'selected' : '' ?>>-- Pilih Kategori --</option>
-                                <?php
-                                $daftar_kategori = ['Elektronik', 'Aksesoris Komputer', 'Furnitur', 'ATK', 'Peralatan', 'Lainnya'];
-                                foreach ($daftar_kategori as $kat):
-                                ?>
-                                    <option value="<?= $kat ?>" <?= ($kategori === $kat) ? 'selected' : '' ?>><?= $kat ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label for="nama_barang">Nama Barang <span class="required">*</span></label>
+                            <input type="text" id="nama_barang" name="nama_barang" class="form-control" 
+                                   placeholder="Contoh: Monitor LG 27 Inch" 
+                                   value="<?= htmlspecialchars($nama_barang) ?>" 
+                                   required maxlength="100">
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="nama_barang">Nama Barang <span class="required">*</span></label>
-                        <input type="text" id="nama_barang" name="nama_barang" class="form-control" 
-                               placeholder="Contoh: Monitor LG UltraWide 29 Inch" 
-                               value="<?= htmlspecialchars($nama_barang) ?>" 
-                               required maxlength="100">
+                    <div class="form-row">
+                        <!-- Dropdown Relasi Tabel Master: kategori -->
+                        <div class="form-group">
+                            <label for="id_kategori">Kategori Barang <span class="required">*</span></label>
+                            <select id="id_kategori" name="id_kategori" class="form-control" required>
+                                <option value="" disabled <?= empty($id_kategori) ? 'selected' : '' ?>>-- Pilih Kategori --</option>
+                                <?php foreach ($kategoriList as $kat): ?>
+                                    <option value="<?= $kat['id_kategori'] ?>" <?= ($id_kategori == $kat['id_kategori']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($kat['nama_kategori']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Dropdown Relasi Tabel Master: lokasi -->
+                        <div class="form-group">
+                            <label for="id_lokasi">Lokasi Penempatan <span class="required">*</span></label>
+                            <select id="id_lokasi" name="id_lokasi" class="form-control" required>
+                                <option value="" disabled <?= empty($id_lokasi) ? 'selected' : '' ?>>-- Pilih Lokasi --</option>
+                                <?php foreach ($lokasiList as $lok): ?>
+                                    <option value="<?= $lok['id_lokasi'] ?>" <?= ($id_lokasi == $lok['id_lokasi']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($lok['nama_lokasi']) ?> (PJ: <?= htmlspecialchars($lok['penanggung_jawab']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="form-row">
@@ -131,13 +158,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label for="stok">Jumlah Stok (Unit) <span class="required">*</span></label>
                             <input type="number" id="stok" name="stok" class="form-control" 
                                    placeholder="0" min="0" 
-                                   value="<?= htmlspecialchars($stok) ?>" required>
+                                   value="<?= htmlspecialchars((string)$stok) ?>" required>
                         </div>
                         <div class="form-group">
                             <label for="harga">Harga Satuan (Rp) <span class="required">*</span></label>
                             <input type="number" id="harga" name="harga" class="form-control" 
                                    placeholder="Contoh: 1500000" min="0" step="500" 
-                                   value="<?= htmlspecialchars($harga) ?>" required>
+                                   value="<?= htmlspecialchars((string)$harga) ?>" required>
                         </div>
                     </div>
 
