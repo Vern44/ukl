@@ -22,15 +22,24 @@ ukl/
 │
 ├── config/
 │   └── koneksi.php       # Konfigurasi koneksi MySQL dengan PDO & try-catch
+├── includes/
+│   ├── auth.php          # Guard session untuk proteksi seluruh halaman CRUD
+│   ├── header.php        # Template kerangka awal HTML & container
+│   ├── footer.php        # Template penutup container & HTML
+│   └── form_barang.php   # Komponen input form bersama (tambah & edit)
 ├── assets/
 │   └── css/
 │       └── style.css     # Styling antarmuka modern, bersih, dan responsif
-├── index.php             # Halaman utama dengan INNER JOIN 3 tabel & kartu statistik
-├── tambah.php            # Form dan proses penambahan barang (dropdown dinamis master)
-├── edit.php              # Form dan proses pembaruan barang (auto-selected dropdown)
-├── hapus.php             # Skrip proses penghapusan barang berdasarkan ID
-├── database.sql          # Skrip SQL struktur 3 tabel (3NF), relasi FK, dan data contoh
-└── README.md             # Dokumentasi lengkap petunjuk penggunaan & arsitektur 3NF
+├── login.php             # Halaman login pengguna
+├── proses_login.php      # Verifikasi username & password_verify() dengan PDO
+├── logout.php            # Penghancuran session & redirect ke login.php
+├── dashboard.php         # Halaman utama terproteksi (INNER JOIN 3 tabel & statistik)
+├── index.php             # Pintu masuk terproteksi yang mengarahkan ke dashboard.php
+├── tambah.php            # Form dan proses tambah barang (terproteksi)
+├── edit.php              # Form dan proses edit barang (terproteksi)
+├── hapus.php             # Skrip proses hapus barang (terproteksi)
+├── database.sql          # Skrip SQL struktur 4 tabel (users + 3NF barang), FK, dan data contoh
+└── README.md             # Dokumentasi lengkap petunjuk penggunaan, 3NF, & autentikasi
 ```
 
 ---
@@ -143,6 +152,22 @@ ORDER BY b.id DESC;
 2. **`INNER JOIN kategori k ON b.id_kategori = k.id_kategori`**: Mencocokkan nilai foreign key `b.id_kategori` dengan primary key `k.id_kategori`. Hasilnya, atribut `k.nama_kategori` ditarik dan disatukan ke dalam baris hasil query.
 3. **`INNER JOIN lokasi l ON b.id_lokasi = l.id_lokasi`**: Mencocokkan nilai foreign key `b.id_lokasi` dengan primary key `l.id_lokasi`. Hasilnya, atribut `l.nama_lokasi` dan `l.penanggung_jawab` ditarik ke dalam baris hasil query.
 4. **Efisiensi Memori & Penyimpanan**: Database hanya menyimpan angka integer ID berukuran kecil (4 byte) di tabel transaksi, namun antarmuka tetap menampilkan data teks informatif yang lengkap dan konsisten.
+
+---
+
+## 🔐 Sistem Autentikasi & Proteksi Session
+
+Aplikasi dilengkapi sistem login berbasis database (tabel `users`) dan proteksi session PHP:
+
+### Kredensial Login Default
+- **Username**: `admin`
+- **Password**: `admin123` *(disimpan di database dalam bentuk hash bcrypt via `password_hash(..., PASSWORD_DEFAULT)`)*
+
+### Alur Autentikasi & Proteksi Halaman
+1. **Login ([login.php](login.php))**: Jika `$_SESSION['logged_in']` sudah bernilai `true`, pengguna otomatis diarahkan ke `dashboard.php`.
+2. **Verifikasi ([proses_login.php](proses_login.php))**: Mengambil data user via **PDO Prepared Statement** (`SELECT id, username, password FROM users WHERE username = :username`), lalu memverifikasi kecocokan password menggunakan `password_verify()`. Jika valid, sistem meregenerasi ID session (`session_regenerate_id(true)`) dan menyimpan `user_id`, `username`, serta `logged_in = true` ke `$_SESSION`.
+3. **Proteksi Halaman ([includes/auth.php](includes/auth.php))**: Di-load di baris paling awal pada `dashboard.php`, `index.php`, `tambah.php`, `edit.php`, dan `hapus.php`. Jika `$_SESSION['logged_in']` kosong, pengguna langsung dialihkan ke `login.php` (`exit;`).
+4. **Logout ([logout.php](logout.php))**: Menjalankan `session_unset()` dan `session_destroy()`, lalu mengembalikan pengguna ke `login.php`.
 
 ---
 

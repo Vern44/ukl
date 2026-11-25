@@ -59,6 +59,6 @@
 </div>
 
 <div class="form-actions">
-    <a href="index.php" class="btn btn-secondary">Batal</a>
+    <a href="dashboard.php" class="btn btn-secondary">Batal</a>
     <button type="submit" class="btn btn-primary"><?= $btn_label ?? '💾 Simpan' ?></button>
 </div>
