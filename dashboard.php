@@ -27,7 +27,7 @@ require 'includes/header.php';
 <header class="app-header">
     <div>
         <h1>📦 Sistem Inventaris Barang</h1>
-        <p>Manajemen data inventaris berbasis PHP Native, MySQL PDO & Normalisasi 3NF</p>
+        <p>Manajemen data inventaris</p>
     </div>
     <div class="action-buttons" style="align-items: center; flex-wrap: wrap;">
         <span class="badge">👤 <?= htmlspecialchars($_SESSION['username']) ?></span>
@@ -69,7 +69,7 @@ if (isset($notif[$status])): ?>
 <!-- Tabel Data Berelasi -->
 <div class="card">
     <div class="card-header">
-        <h2>Daftar Barang Tersedia (Relasi 3NF)</h2>
+        <h2>Daftar Barang Tersedia</h2>
         <span class="badge"><?= count($daftar_barang) ?> Data Ditemukan</span>
     </div>
     <div class="card-body" style="padding: 0;">
