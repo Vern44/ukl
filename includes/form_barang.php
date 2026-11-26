@@ -4,7 +4,6 @@ $kategoriList = $kategoriList ?? [];
 $lokasiList   = $lokasiList ?? [];
 $d            = $d ?? [];
 ?>
-?>
 <div class="form-row">
     <div class="form-group">
         <label for="kode_barang">Kode Barang <span class="required">*</span></label>
