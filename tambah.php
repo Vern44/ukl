@@ -1,11 +1,9 @@
 <?php
-/**
- * tambah.php - Form dan proses tambah barang berelasi (terproteksi session)
- */
-require_once 'includes/auth.php'; // Proteksi session: wajib login
+
+require_once 'includes/auth.php';
 require_once 'config/koneksi.php';
 
-// Ambil master data untuk dropdown dinamis
+
 $kategoriList = $pdo->query("SELECT id_kategori, nama_kategori FROM kategori ORDER BY nama_kategori")->fetchAll();
 $lokasiList   = $pdo->query("SELECT id_lokasi, nama_lokasi, penanggung_jawab FROM lokasi ORDER BY nama_lokasi")->fetchAll();
 
@@ -20,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!is_numeric($d['stok']) || (int)$d['stok'] < 0 || !is_numeric($d['harga']) || (int)$d['harga'] < 0) {
         $error = 'Stok dan harga harus berupa angka non-negatif.';
     } else {
-        // Cek duplikasi kode barang sebelum insert
+       
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM barang WHERE kode_barang = ?");
         $stmt->execute([$d['kode_barang']]);
         if ($stmt->fetchColumn() > 0) {

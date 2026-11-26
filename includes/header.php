@@ -1,8 +1,5 @@
 <?php
-/**
- * includes/header.php
- * Template kerangka awal HTML dan container
- */
+
 $page_title = $page_title ?? 'Sistem Inventaris Barang';
 ?>
 <!DOCTYPE html>

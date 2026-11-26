@@ -1,10 +1,7 @@
 <?php
-/**
- * login.php - Halaman form login dengan redirect otomatis jika session sudah aktif
- */
 session_start();
 
-// Jika sudah login, langsung arahkan ke dashboard
+
 if (!empty($_SESSION['logged_in'])) {
     header("Location: dashboard.php");
     exit;

@@ -1,18 +1,16 @@
 <?php
-/**
- * edit.php - Form dan proses pembaruan data barang berelasi (terproteksi session)
- */
-require_once 'includes/auth.php'; // Proteksi session: wajib login
+
+require_once 'includes/auth.php'; 
 require_once 'config/koneksi.php';
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id) { header("Location: dashboard.php?status=gagal&pesan=" . urlencode("ID barang tidak valid.")); exit; }
 
-// Ambil master data untuk dropdown dinamis
+
 $kategoriList = $pdo->query("SELECT id_kategori, nama_kategori FROM kategori ORDER BY nama_kategori")->fetchAll();
 $lokasiList   = $pdo->query("SELECT id_lokasi, nama_lokasi, penanggung_jawab FROM lokasi ORDER BY nama_lokasi")->fetchAll();
 
-// Ambil data barang lama
+
 $stmt = $pdo->prepare("SELECT * FROM barang WHERE id = ?");
 $stmt->execute([$id]);
 $d = $stmt->fetch();
@@ -28,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!is_numeric($d['stok']) || (int)$d['stok'] < 0 || !is_numeric($d['harga']) || (int)$d['harga'] < 0) {
         $error = 'Stok dan harga harus berupa angka non-negatif.';
     } else {
-        // Cek keunikan kode barang terhadap data barang lain
+       
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM barang WHERE kode_barang = ? AND id != ?");
         $stmt->execute([$d['kode_barang'], $id]);
         if ($stmt->fetchColumn() > 0) {

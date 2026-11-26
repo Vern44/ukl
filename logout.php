@@ -1,10 +1,8 @@
 <?php
-/**
- * logout.php - Menghapus seluruh data session dan mengarahkan ke login.php
- */
+
 session_start();
-session_unset();   // Hapus semua variabel $_SESSION
-session_destroy(); // Hancurkan session aktif di server
+session_unset();   
+session_destroy(); 
 
 header("Location: login.php?status=logout");
 exit;

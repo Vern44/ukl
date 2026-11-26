@@ -1,14 +1,12 @@
 <?php
-/**
- * dashboard.php - Halaman utama terproteksi menampilkan data inventaris (INNER JOIN 3NF)
- */
-require_once 'includes/auth.php'; // Proteksi session: wajib login
+
+require_once 'includes/auth.php'; 
 require_once 'config/koneksi.php';
 
 $status = $_GET['status'] ?? '';
 $pesan  = $_GET['pesan'] ?? '';
 
-// Query INNER JOIN 3 tabel: menampilkan nama kategori & lokasi menggantikan foreign key ID
+
 $sql = "SELECT b.id, b.kode_barang, b.nama_barang, b.stok, b.harga, b.tanggal_masuk,
                k.nama_kategori, l.nama_lokasi, l.penanggung_jawab
         FROM barang b
@@ -17,13 +15,13 @@ $sql = "SELECT b.id, b.kode_barang, b.nama_barang, b.stok, b.harga, b.tanggal_ma
         ORDER BY b.id DESC";
 $daftar_barang = $pdo->query($sql)->fetchAll();
 
-// Statistik ringkas inventaris
+
 $stats = $pdo->query("SELECT COUNT(*) total_item, COALESCE(SUM(stok),0) total_stok, COALESCE(SUM(stok * harga),0) total_nilai FROM barang")->fetch();
 
 $page_title = 'Dashboard - Sistem Inventaris Barang';
 require 'includes/header.php';
 ?>
-<!-- Header Aplikasi & Navigasi User -->
+
 <header class="app-header">
     <div>
         <h1>📦 Sistem Inventaris Barang</h1>
@@ -36,7 +34,7 @@ require 'includes/header.php';
     </div>
 </header>
 
-<!-- Pesan Notifikasi Operasi -->
+
 <?php
 $notif = [
     'sukses_tambah' => ['success', 'Data barang baru berhasil disimpan ke database.'],
@@ -50,7 +48,7 @@ if (isset($notif[$status])): ?>
     </div>
 <?php endif; ?>
 
-<!-- Kartu Statistik -->
+
 <div class="stats-grid">
     <div class="stat-card">
         <div class="label">Total Jenis Barang</div>
@@ -66,7 +64,7 @@ if (isset($notif[$status])): ?>
     </div>
 </div>
 
-<!-- Tabel Data Berelasi -->
+
 <div class="card">
     <div class="card-header">
         <h2>Daftar Barang Tersedia</h2>

@@ -1,8 +1,6 @@
 <?php
-/**
- * hapus.php - Pemrosesan penghapusan data barang berdasarkan ID (terproteksi session)
- */
-require_once 'includes/auth.php'; // Proteksi session: wajib login
+
+require_once 'includes/auth.php'; 
 require_once 'config/koneksi.php';
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
