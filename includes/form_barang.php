@@ -1,8 +1,9 @@
 <?php
-/**
- * includes/form_barang.php
- * Komponen form input bersama untuk tambah dan edit barang
- */
+
+$kategoriList = $kategoriList ?? [];
+$lokasiList   = $lokasiList ?? [];
+$d            = $d ?? [];
+?>
 ?>
 <div class="form-row">
     <div class="form-group">
